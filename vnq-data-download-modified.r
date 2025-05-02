@@ -30,12 +30,20 @@ colnames(vnq_all_prices_df) [2]<- "Price"
 # Get the first day of each month
 vnq_all_prices_df$Year_Month <- floor_date(vnq_all_prices_df$Date, "month")
 
-# For each month, get the first available trading day
-vnq_prices <- vnq_all_prices_df %>%
+
+# Group by Year_Month and get the last price for each month
+vnq_monthly_last_price <- vnq_all_prices_df %>%
   group_by(Year_Month) %>%
-  slice(1) %>%
-  ungroup() %>%
-  select(Date, Price)
+  filter(Date == max(Date)) %>%
+  ungroup()
+
+
+# For each month, get the first available trading day
+# vnq_prices <- vnq_all_prices_df %>%
+#   group_by(Year_Month) %>%
+#   slice(1) %>%
+#   ungroup() %>%
+#   select(Date, Price)
 
 # Get dividend data
 vnq_dividends <- getDividends("VNQ", from = start_date, to = end_date)
@@ -55,7 +63,7 @@ monthly_dividends <- vnq_dividends_df %>%
   ungroup()
 
 # Merge monthly prices and dividends by year-month
-vnq_monthly_data <- vnq_prices %>%
+vnq_monthly_data <- vnq_monthly_last_price %>%
   mutate(Year_Month = floor_date(Date, "month")) %>%
   left_join(monthly_dividends, by = "Year_Month") %>%
   select(Date, Price, Monthly_Dividend_Sum, Year_Month)
@@ -67,7 +75,7 @@ vnq_monthly_data$Monthly_Dividend_Sum[is.na(vnq_monthly_data$Monthly_Dividend_Su
 print(head(vnq_monthly_data))
 
 # Export to CSV
-write.csv(vnq_monthly_data, "vnq_monthly_data.csv", row.names = FALSE)
+#write.csv(vnq_monthly_data, "vnq_monthly_data.csv", row.names = FALSE)
 
 # Optional: Calculate monthly returns
 # Calculate monthly returns where the first month will be NA
@@ -76,15 +84,14 @@ vnq_monthly_returns <- vnq_monthly_data %>%
   mutate(
     Previous_Month_Price = lag(Price),
     Previous_Month_Date = lag(Date),
-    Monthly_Return = (Price - Previous_Month_Price + Monthly_Dividend_Sum) / Previous_Month_Price
+    VNQ_Monthly_Return = (Price - Previous_Month_Price + Monthly_Dividend_Sum) / Previous_Month_Price
   ) %>%
-  select(Date, Previous_Month_Date, Previous_Month_Price, Price, Monthly_Dividend_Sum, Monthly_Return)
+  select(Date, Previous_Month_Date, Previous_Month_Price, Price, Monthly_Dividend_Sum, VNQ_Monthly_Return)
 
 # The first row will have NA for previous month's price
 # Keep all rows but be aware the first entry's return calculation will be NA
 
 # Export monthly returns to CSV
 write.csv(vnq_monthly_returns, "vnq_monthly_returns.csv", row.names = FALSE)
+str(vnq_monthly_returns)
 
-# Export monthly returns to CSV
-write.csv(vnq_monthly_returns, "vnq_monthly_returns.csv", row.names = FALSE)
